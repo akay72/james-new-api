@@ -1,4 +1,4 @@
-﻿Flask==3.0.3
+Flask==3.0.3
 beautifulsoup4==4.12.3
 undetected-chromedriver==3.5.5
 requests==2.32.3
