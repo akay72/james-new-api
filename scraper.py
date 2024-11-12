@@ -37,27 +37,16 @@ def construct_url(search_term, state_name):
 
 # Setup ChromeDriver with Heroku paths
 def setup_chrome_driver():
-    options = Options()
+    options = uc.ChromeOptions()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
-
-    # Set binary location for Google Chrome
-    chrome_bin_path = os.getenv("GOOGLE_CHROME_BIN", "/app/.apt/usr/bin/google-chrome")
-    if not os.path.isfile(chrome_bin_path):
-        raise FileNotFoundError(f"Chrome binary not found at specified path: {chrome_bin_path}")
-    
-    options.binary_location = chrome_bin_path
-
-    # Set path for Chromedriver
-    driver_path = os.getenv("CHROMEDRIVER_PATH", "/app/.chromedriver/bin/chromedriver")
-    if not os.path.isfile(driver_path):
-        raise FileNotFoundError(f"Chromedriver not found at specified path: {driver_path}")
-    
-    # Initialize Chrome driver with specified options and paths
+    options.binary_location = "/app/.chrome-for-testing/chrome-linux64/chrome"
+    driver_path = "/app/.chrome-for-testing/chromedriver-linux64/chromedriver"
     driver = uc.Chrome(options=options, driver_executable_path=driver_path)
     return driver
+
 
 # Function to fetch contact details and return JSON-like structure
 def fetch_contact_info(search_term, state_name):
