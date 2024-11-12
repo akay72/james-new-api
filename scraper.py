@@ -37,15 +37,25 @@ def construct_url(search_term, state_name):
 
 # Setup ChromeDriver with Heroku paths
 def setup_chrome_driver():
-    options = uc.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.binary_location = "/app/.chrome-for-testing/chrome-linux64/chrome"
-    driver_path = "/app/.chrome-for-testing/chromedriver-linux64/chromedriver"
-    driver = uc.Chrome(options=options, driver_executable_path=driver_path)
-    return driver
+    
+        try:
+            user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.140 Safari/537.36"
+            chrome_options = uc.ChromeOptions()
+            chrome_options.add_argument('--headless=new')
+            chrome_options.add_argument("--start-maximized")
+            chrome_options.add_argument("user-agent={}".format(user_agent))
+            driver = uc.Chrome(options=chrome_options)
+            stealth(driver,
+            languages=["en-US", "en"],
+            vendor="Google Inc.",
+            platform="Win32",
+            webgl_vendor="Intel Inc.",
+            renderer="Intel Iris OpenGL Engine",
+            fix_hairline=True
+            )
+            return driver
+        except Exception as e:
+            print("Error in Driver: ",e)
 
 
 # Function to fetch contact details and return JSON-like structure
