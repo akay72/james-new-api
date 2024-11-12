@@ -27,6 +27,7 @@ state_codes = {
 
 # Function to construct the Allbiz URL
 def construct_url(search_term, state_name):
+    state_name = state_name.strip()
     state_code = state_codes.get(state_name.title())
     if not state_code:
         return f"Error: State '{state_name}' not found in mapping."
