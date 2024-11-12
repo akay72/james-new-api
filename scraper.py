@@ -42,8 +42,8 @@ def setup_chrome_driver():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
-    options.binary_location = os.getenv("GOOGLE_CHROME_BIN", "/app/.apt/usr/bin/google-chrome")
-    driver_path = os.getenv("CHROMEDRIVER_PATH", "/app/.chromedriver/bin/chromedriver")
+    options.binary_location = os.getenv("GOOGLE_CHROME_BIN")
+    driver_path = os.getenv("CHROMEDRIVER_PATH")
     driver = uc.Chrome(options=options, driver_executable_path=driver_path)
     return driver
 
