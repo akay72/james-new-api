@@ -43,16 +43,19 @@ def setup_chrome_driver():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
 
-    # Ensure binary_location is a valid string path
-    chrome_bin_path = os.getenv("GOOGLE_CHROME_BIN") or "/app/.apt/usr/bin/google-chrome"
-    if isinstance(chrome_bin_path, str):
-        options.binary_location = chrome_bin_path
-    else:
-        raise ValueError("Binary Location Must be a String")
-
-    driver_path = os.getenv("CHROMEDRIVER_PATH", "/app/.chromedriver/bin/chromedriver")
+    # Set binary location for Google Chrome
+    chrome_bin_path = os.getenv("GOOGLE_CHROME_BIN", "/app/.apt/usr/bin/google-chrome")
+    if not os.path.isfile(chrome_bin_path):
+        raise FileNotFoundError(f"Chrome binary not found at specified path: {chrome_bin_path}")
     
-    # Initialize Chrome driver with specified options and path
+    options.binary_location = chrome_bin_path
+
+    # Set path for Chromedriver
+    driver_path = os.getenv("CHROMEDRIVER_PATH", "/app/.chromedriver/bin/chromedriver")
+    if not os.path.isfile(driver_path):
+        raise FileNotFoundError(f"Chromedriver not found at specified path: {driver_path}")
+    
+    # Initialize Chrome driver with specified options and paths
     driver = uc.Chrome(options=options, driver_executable_path=driver_path)
     return driver
 
