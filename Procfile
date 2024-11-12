@@ -1,1 +1,2 @@
-web: python apii.py
+web: python3 apii.py
+
