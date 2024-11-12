@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import re
 from selenium.webdriver.chrome.options import Options
 import os
+from selenium_stealth import stealth
 
 # State code mapping for Allbiz
 state_codes = {
