@@ -1,2 +1,1 @@
-web: python3 apii.py
-
+web: gunicorn apii:app --timeout 200
