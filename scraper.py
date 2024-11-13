@@ -60,115 +60,157 @@ def setup_chrome_driver():
 
 
 # Function to fetch contact details and return JSON-like structure
-def fetch_contact_info(search_term, state_name):
+def fetch_contact_info(search_term, state_name, target_street_address):
     url = construct_url(search_term, state_name)
     if "Error" in url:
-        return {"error": url}
+        print(url)
+        return
 
     driver = setup_chrome_driver()
-    data = []
-
+    
     try:
         driver.get(url)
         time.sleep(random.uniform(2, 5))
-        soup = BeautifulSoup(driver.page_source, "html.parser")
 
+        # Parse the page content with BeautifulSoup
         soup = BeautifulSoup(driver.page_source, "html.parser")
 
         # Find 'result-b' class divs and collect the links and address information
         result_divs = soup.find_all("a", class_="res-link")
-        links = []
+        
         for div in result_divs:
             link = div['href']
             business_title = div.find(class_='res-bname').get_text(strip=True)
             address_div = div.find("span", class_="res-addy-text")
-            address = address_div.get_text(strip=True) if address_div else ""
+            if address_div:
+                # Method 1: Using get_text with strip
+                address = address_div.get_text(strip=True)
+                print("Address (get_text with strip):", address)
+
+                # Method 2: Using .text with .strip()
+                if not address:
+                    address = address_div.text.strip()
+                    print("Address (text with strip):", address)
+
+                # Method 3: Using .contents (useful if there’s nested structure)
+                if not address and address_div.contents:
+                    address = ''.join([str(content).strip() for content in address_div.contents])
+                    print("Address (using contents):", address)
+
+            else:
+                address=""
+                print("Address div not found.")
             
             # Split address into components
             match = re.match(r"(.*), ([A-Z]{2}) (\d{5})", address)
             street_address = match.group(1) if match else ""
+            print(street_address)
             state = match.group(2) if match else ""
             zip_code = match.group(3) if match else ""
-            
-            # Add to links list for further processing
-            links.append((link, business_title, street_address, state, zip_code))
+
+            similarity = fuzz.partial_ratio(address.lower(), target_street_address.lower())
+            # Check if this is the target address
+            if similarity >= 70:
+                # Visit the company page for detailed information
+                driver.get(link)
+                time.sleep(random.uniform(3, 7))
+
+                contact_soup = BeautifulSoup(driver.page_source, "html.parser")
+
+                if not state or not zip_code:
+                    print("State and zip are not found on the main page; checking company page details.")
+                    address_container = contact_soup.find("div", class_="fp rrv")
+                    print("Address container content:", address_container)
+                    
+                    if address_container:
+                        # Extract complete address text
+                        address_text = address_container.get_text(separator=" ", strip=True).replace("\xa0", " ")
+                        print("Complete address:", address_text)
+
+                        # Updated regex pattern to capture street address, state, and zip only
+                        match = re.search(r"(.*?),?\s+([A-Za-z\s]+),?\s+(\d{5})", address_text)
+
+                        # Check if match is found and print for debugging
+                        if match:
+                            print("Match groups:", match.groups())
+                            
+                            street_address=match.group(1).strip()
+                            state = match.group(2).strip()           # State (any length)
+                            zip_code = match.group(3).strip()         # Zip code (five digits)
+
+                            # Print the extracted details
+                            print("Street Address:", street_address)
+                            print("State:", state)
+                            print("Zip Code:", zip_code)
+                        else:
+                            street_address=""
+                            state = ""       
+                            zip_code = ""   
+                    else:
+                        print("Address container not found.")
+                                            
+
+
+                contact_div = contact_soup.find("div", class_="mt16 ats prmyc")
+                name = contact_div.find("strong").get_text(strip=True) if contact_div and contact_div.find("strong") else ""
+                position = contact_div.find("span").get_text(strip=True) if contact_div and contact_div.find("span") else ""
+
+                phones = []
+                contact_email, company_email, website = "", "", ""
+                employees, founded = "", ""
+
+                for bl_div in contact_soup.find_all("div", class_="bl"):
+                    label = bl_div.find("b")
+                    if label:
+                        label_text = label.get_text(strip=True)
+                        if "Phone" in label_text:
+                            phone = bl_div.find("a", href=True)
+                            if phone:
+                                phones.append(phone.get_text(strip=True))
+                        elif "Email" in label_text:
+                            email = bl_div.find("a", href=True)
+                            if email:
+                                if not contact_email:
+                                    contact_email = email.get_text(strip=True)
+                                else:
+                                    company_email = email.get_text(strip=True)
+                        elif "Web" in label_text:
+                            web_link = bl_div.find("a", href=True)
+                            if web_link:
+                                website = web_link.get("href")
+
+                for attri_div in contact_soup.find_all("div", class_="attri"):
+                    label = attri_div.find("b")
+                    if label:
+                        label_text = label.get_text(strip=True)
+                        if "Employees" in label_text:
+                            employees = attri_div.get_text(strip=True).replace("Employees:", "").strip()
+                        elif "Founded" in label_text:
+                            founded = attri_div.get_text(strip=True).replace("Founded:", "").strip()
+
+                phones_str = ", ".join(phones)
+
+                # Return JSON-like data for the matching company
+                return {
+                    "Business Title": business_title,
+                    "Address": street_address,
+                    "State": state,
+                    "Zip": zip_code,
+                    "Contact Name": name,
+                    "Position": position,
+                    "Phone": phones_str,
+                    "Contact Email": contact_email,
+                    "Company Email": company_email,
+                    "Web": website,
+                    "Employees": employees,
+                    "Founded": founded
+                }
+
+        print("No matching company found for the specified address.")
         
-        print("Found links:", links)
-
-        # Visit each link and extract contact details
-        for link, business_title, street_address, state, zip_code in links:
-            print(f"Visiting link: {link}")
-            driver.get(link)
-            time.sleep(random.uniform(3, 7))  # Random cooldown between visits
-
-            # Parse the contact page
-            contact_soup = BeautifulSoup(driver.page_source, "html.parser")
-
-            # Extract contact name and position from 'mt16 ats prmyc' divs
-            contact_div = contact_soup.find("div", class_="mt16 ats prmyc")
-            if contact_div:
-                name = contact_div.find("strong").get_text(strip=True) if contact_div.find("strong") else ""
-                position = contact_div.find("span").get_text(strip=True) if contact_div.find("span") else ""
-            else:
-                name, position = "", ""
-
-            # Collect phones, contact email, company email, website, employees, and founded year
-            phones = []
-            contact_email, company_email, website = "", "", ""
-            employees, founded = "", ""
-
-            for bl_div in contact_soup.find_all("div", class_="bl"):
-                label = bl_div.find("b")
-                if label:
-                    label_text = label.get_text(strip=True)
-                    if "Phone" in label_text:
-                        phone = bl_div.find("a", href=True)
-                        if phone:
-                            phones.append(phone.get_text(strip=True))
-                    elif "Email" in label_text:
-                        email = bl_div.find("a", href=True)
-                        if email:
-                            if not contact_email:  # First email as contact email
-                                contact_email = email.get("href").replace("mailto:", "")
-                            else:  # Second email as company email, extract visible text
-                                company_email = email.get_text(strip=True)
-                    elif "Web" in label_text:
-                        web_link = bl_div.find("a", href=True)
-                        if web_link:
-                            website = web_link.get("href")
-
-            # Find the Employees and Founded information
-            for attri_div in contact_soup.find_all("div", class_="attri"):
-                label = attri_div.find("b")
-                if label:
-                    label_text = label.get_text(strip=True)
-                    if "Employees" in label_text:
-                        employees = attri_div.get_text(strip=True).replace("Employees:", "").strip()
-                    elif "Founded" in label_text:
-                        founded = attri_div.get_text(strip=True).replace("Founded:", "").strip()
-
-            # Join all collected phone numbers into a single string
-            phones_str = ", ".join(phones)
-
-            # Append the information as a dictionary to the data list
-            data.append({
-                "Business Title": business_title,
-                "Address": street_address,
-                "State": state,
-                "Zip": zip_code,
-                "Contact Name": name,
-                "Position": position,
-                "Phone": phones_str,
-                "Contact Email": contact_email,
-                "Company Email": company_email,
-                "Web": website,
-                "Employees": employees,
-                "Founded": founded
-            })
-
     except Exception as e:
-        print()
+        print("An error occurred:", e)
     finally:
         driver.quit()
-    
-    return data  # Return the data as JSON-like structure
+
+    return None  # Return None if no matching company is found
