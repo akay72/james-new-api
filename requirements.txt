@@ -6,3 +6,4 @@ gunicorn==23.0.0
 selenium==4.17.2
 webdriver-manager==3.5.2
 selenium-stealth==1.0.6 
+fuzzywuzzy==0.18.0 
