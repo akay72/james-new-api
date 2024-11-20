@@ -9,14 +9,6 @@ def fetch_contact():
     search_term = request.args.get('search_term')
     state_name = request.args.get('state_name')
     target_street_address = request.args.get('target_street_address')  # New parameter
-
-    if search_term:
-        search_term = unquote(search_term)
-    if state_name:
-        state_name = unquote(state_name)
-    if target_street_address:
-        target_street_address=unquote(target_street_address)
-    
     
     # Validate parameters
     if not search_term or not state_name or not target_street_address:
