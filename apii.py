@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from scrapper import fetch_contact_info  # Import the scraping function
+from urllib.parse import unquote  # Import to decode query parameters
 
 app = Flask(__name__)
 
@@ -8,6 +9,12 @@ def fetch_contact():
     # Get query parameters
     search_term = request.args.get('search_term')
     state_name = request.args.get('state_name')
+    
+    # Decode query parameters to handle special characters like &
+    if search_term:
+        search_term = unquote(search_term)
+    if state_name:
+        state_name = unquote(state_name)
     
     # Validate parameters
     if not search_term or not state_name:
