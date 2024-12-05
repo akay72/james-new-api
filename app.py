@@ -11,8 +11,8 @@ def fetch_contact():
     target_street_address = request.args.get('target_street_address', '')  # Optional parameter
 
     # Validate parameters
-    if not search_term or not state_name:
-        return jsonify({"error": "Please provide both 'search_term' and 'state_name' parameters"}), 400
+    if not search_term or not state_name or not target_street_address:
+        return jsonify({"error": "Please provide all  'search_term','state_name' and 'target_street_address' parameters"}), 400
 
     try:
         # Call the fetch_contact_info function
