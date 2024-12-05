@@ -8,6 +8,9 @@ from selenium.webdriver.chrome.options import Options
 import os
 from selenium_stealth import stealth
 from fuzzywuzzy import fuzz
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # State code mapping for Allbiz
 state_codes = {
@@ -71,13 +74,15 @@ def fetch_contact_info(search_term, state_name, target_street_address):
     
     try:
         driver.get(url)
-        time.sleep(random.uniform(2, 5))
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, "res-link"))
+        )
 
         # Parse the page content with BeautifulSoup
         soup = BeautifulSoup(driver.page_source, "html.parser")
 
         # Find 'result-b' class divs and collect the links and address information
-        result_divs = soup.find_all("a", class_="res-link")
+        result_divs = soup.find_all("a", class_="res-link")[:5]
         
         for div in result_divs:
             link = div['href']
@@ -114,7 +119,7 @@ def fetch_contact_info(search_term, state_name, target_street_address):
             if similarity >= 70:
                 # Visit the company page for detailed information
                 driver.get(link)
-                time.sleep(random.uniform(3, 7))
+                time.sleep(random.uniform(1,3))
 
                 contact_soup = BeautifulSoup(driver.page_source, "html.parser")
 
@@ -206,8 +211,8 @@ def fetch_contact_info(search_term, state_name, target_street_address):
                     "Employees": employees,
                     "Founded": founded
                 }
-
         print("No matching company found for the specified address.")
+        return "No matching company found"
         
     except Exception as e:
         print("An error occurred:", e)
