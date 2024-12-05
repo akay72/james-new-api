@@ -30,6 +30,23 @@ state_codes = {
     "Wisconsin": "US_WI", "Wyoming": "US_WY"
 }
 
+def is_address_match(address, target_street_address):
+    # Normalize addresses by converting to lowercase and stripping extra spaces
+    normalized_address = address.lower().strip()
+    normalized_target = target_street_address.lower().strip()
+    
+    # Ensure the target address has a reasonable length to avoid false positives
+    if len(normalized_target) < 3:  # Avoid overly generic matches
+        print("Target address is too short for reliable matching.")
+        return False
+    
+    # Use fuzz.ratio for stricter matching instead of partial_ratio
+    similarity = fuzz.ratio(normalized_address, normalized_target)
+    
+    # Set a higher threshold for matches to avoid false positives
+    return similarity >= 80  # Adjust threshold as needed
+
+
 # Function to construct the Allbiz URL
 def construct_url(search_term, state_name):
     state_name = state_name.strip()
