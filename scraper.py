@@ -133,7 +133,8 @@ def fetch_contact_info(search_term, state_name, target_street_address):
 
             similarity = fuzz.partial_ratio(address.lower(), target_street_address.lower())
             # Check if this is the target address
-            if similarity >= 70:
+            if is_address_match(address, target_street_address):
+
                 # Visit the company page for detailed information
                 driver.get(link)
                 time.sleep(random.uniform(1,3))
