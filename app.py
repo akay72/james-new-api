@@ -29,14 +29,14 @@ def validate_api_key(func):
         if not user:
             return jsonify({"error": "Invalid API key"}), 403
         
-        # Increment usage count
-        users[user]['usage_count'] += 1
+        # Pass the user to the route function via kwargs
+        kwargs['user'] = user
         return func(*args, **kwargs)
     return wrapper
 
 @app.route('/api/fetch_contact', methods=['GET'])
 @validate_api_key
-def fetch_contact():
+def fetch_contact(user):
     # Get query parameters
     search_term = request.args.get('search_term')
     state_name = request.args.get('state_name')
@@ -52,7 +52,10 @@ def fetch_contact():
         
         if data == "No matching company found":
             return jsonify({"message": "No company found"}), 404
-
+        
+        # Increment usage count only on successful data retrieval
+        users[user]['usage_count'] += 1
+        
         # Return the found data
         return jsonify(data), 200
     except ValueError as ve:
