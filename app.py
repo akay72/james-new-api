@@ -40,9 +40,8 @@ def init_db():
             ''', user)
         conn.commit()
 
-@app.before_first_request
-def setup():
-    init_db()
+# Call the database initialization function on app startup
+init_db()
 
 # Middleware to validate API key
 def validate_api_key(func):
@@ -58,7 +57,7 @@ def validate_api_key(func):
             if not user:
                 return jsonify({"error": "Invalid API key"}), 403
 
-            kwargs['user'] = user[0]
+            kwargs['user'] = user[0]  # Pass the username to the route
             return func(*args, **kwargs)
     return wrapper
 
