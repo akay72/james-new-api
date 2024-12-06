@@ -1,25 +1,48 @@
 from flask import Flask, request, jsonify
 from scraper import fetch_contact_info  # Import the scraping function
+import sqlite3
 from threading import Lock
 
 app = Flask(__name__)
 
-# Static users and API keys with thread-safe lock for usage tracking
-users = {
-    "User1": {"api_key": "a1b2c3d4e5f6g7h8", "usage_count": 0},
-    "User2": {"api_key": "i9j0k1l2m3n4o5p6", "usage_count": 0},
-    "User3": {"api_key": "q7r8s9t0u1v2w3x4", "usage_count": 0},
-    "User4": {"api_key": "y5z6a7b8c9d0e1f2", "usage_count": 0},
-    "User5": {"api_key": "g3h4i5j6k7l8m9n0", "usage_count": 0},
-    "User6": {"api_key": "o1p2q3r4s5t6u7v8", "usage_count": 0},
-    "User7": {"api_key": "w9x0y1z2a3b4c5d6", "usage_count": 0},
-    "User8": {"api_key": "e7f8g9h0i1j2k3l4", "usage_count": 0},
-    "User9": {"api_key": "m5n6o7p8q9r0s1t2", "usage_count": 0},
-    "User10": {"api_key": "u3v4w5x6y7z8a9b0", "usage_count": 0},
-}
-
-# Lock for thread-safe updates
+# Lock for database operations
 lock = Lock()
+
+# Initialize SQLite database
+def init_db():
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        # Create users table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                username TEXT PRIMARY KEY,
+                api_key TEXT NOT NULL,
+                usage_count INTEGER DEFAULT 0
+            )
+        ''')
+        # Insert static users if they don't exist
+        static_users = [
+            ("User1", "a1b2c3d4e5f6g7h8"),
+            ("User2", "i9j0k1l2m3n4o5p6"),
+            ("User3", "q7r8s9t0u1v2w3x4"),
+            ("User4", "y5z6a7b8c9d0e1f2"),
+            ("User5", "g3h4i5j6k7l8m9n0"),
+            ("User6", "o1p2q3r4s5t6u7v8"),
+            ("User7", "w9x0y1z2a3b4c5d6"),
+            ("User8", "e7f8g9h0i1j2k3l4"),
+            ("User9", "m5n6o7p8q9r0s1t2"),
+            ("User10", "u3v4w5x6y7z8a9b0")
+        ]
+        for user in static_users:
+            cursor.execute('''
+                INSERT OR IGNORE INTO users (username, api_key, usage_count)
+                VALUES (?, ?, 0)
+            ''', user)
+        conn.commit()
+
+@app.before_first_request
+def setup():
+    init_db()
 
 # Middleware to validate API key
 def validate_api_key(func):
@@ -27,15 +50,16 @@ def validate_api_key(func):
         api_key = request.headers.get('X-API-KEY')
         if not api_key:
             return jsonify({"error": "API key is required"}), 403
-        
-        # Check if the API key matches any user
-        user = next((u for u, v in users.items() if v['api_key'] == api_key), None)
-        if not user:
-            return jsonify({"error": "Invalid API key"}), 403
-        
-        # Pass the user to the route function via kwargs
-        kwargs['user'] = user
-        return func(*args, **kwargs)
+
+        with sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT username FROM users WHERE api_key = ?", (api_key,))
+            user = cursor.fetchone()
+            if not user:
+                return jsonify({"error": "Invalid API key"}), 403
+
+            kwargs['user'] = user[0]
+            return func(*args, **kwargs)
     return wrapper
 
 @app.route('/api/fetch_contact', methods=['GET'])
@@ -56,11 +80,17 @@ def fetch_contact(user):
         
         if data == "No matching company found":
             return jsonify({"message": "No company found"}), 404
-        
-        # Increment usage count only on successful data retrieval (thread-safe)
-        with lock:
-            users[user]['usage_count'] += 1
-        
+
+        # Increment usage count in the database
+        with lock, sqlite3.connect("users.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE users
+                SET usage_count = usage_count + 1
+                WHERE username = ?
+            ''', (user,))
+            conn.commit()
+
         # Return the found data
         return jsonify(data), 200
     except ValueError as ve:
@@ -73,7 +103,11 @@ def user_stats():
     """
     Endpoint to fetch usage statistics for all users.
     """
-    return jsonify(users), 200
+    with sqlite3.connect("users.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT username, api_key, usage_count FROM users")
+        users = cursor.fetchall()
+    return jsonify({user[0]: {"api_key": user[1], "usage_count": user[2]} for user in users}), 200
 
 if __name__ == '__main__':
     # Run Flask with threading enabled for better concurrency
