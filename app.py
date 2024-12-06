@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
 from scraper import fetch_contact_info  # Import the scraping function
+from threading import Lock
 
 app = Flask(__name__)
 
-# Static users and API keys
+# Static users and API keys with thread-safe lock for usage tracking
 users = {
     "User1": {"api_key": "a1b2c3d4e5f6g7h8", "usage_count": 0},
     "User2": {"api_key": "i9j0k1l2m3n4o5p6", "usage_count": 0},
@@ -16,6 +17,9 @@ users = {
     "User9": {"api_key": "m5n6o7p8q9r0s1t2", "usage_count": 0},
     "User10": {"api_key": "u3v4w5x6y7z8a9b0", "usage_count": 0},
 }
+
+# Lock for thread-safe updates
+lock = Lock()
 
 # Middleware to validate API key
 def validate_api_key(func):
@@ -53,8 +57,9 @@ def fetch_contact(user):
         if data == "No matching company found":
             return jsonify({"message": "No company found"}), 404
         
-        # Increment usage count only on successful data retrieval
-        users[user]['usage_count'] += 1
+        # Increment usage count only on successful data retrieval (thread-safe)
+        with lock:
+            users[user]['usage_count'] += 1
         
         # Return the found data
         return jsonify(data), 200
