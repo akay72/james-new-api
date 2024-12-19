@@ -7,3 +7,4 @@ selenium==4.17.2
 webdriver-manager==3.5.2
 selenium-stealth==1.0.6 
 fuzzywuzzy==0.18.0 
+psycopg2==2.9.10
