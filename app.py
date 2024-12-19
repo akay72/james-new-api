@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 from scraper import fetch_contact_info  # Import the scraping function
-import sqlite3
+import psycopg2
+from psycopg2 import sql
+import os
 from threading import Lock
 
 app = Flask(__name__)
@@ -8,9 +10,12 @@ app = Flask(__name__)
 # Lock for database operations
 lock = Lock()
 
-# Initialize SQLite database
+# Database configuration (fetch from environment variable)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Initialize PostgreSQL database
 def init_db():
-    with sqlite3.connect("users.db") as conn:
+    with psycopg2.connect(DATABASE_URL) as conn:
         cursor = conn.cursor()
         # Create users table if it doesn't exist
         cursor.execute('''
@@ -35,8 +40,9 @@ def init_db():
         ]
         for user in static_users:
             cursor.execute('''
-                INSERT OR IGNORE INTO users (username, api_key, usage_count)
-                VALUES (?, ?, 0)
+                INSERT INTO users (username, api_key, usage_count)
+                VALUES (%s, %s, 0)
+                ON CONFLICT (username) DO NOTHING
             ''', user)
         conn.commit()
 
@@ -50,9 +56,9 @@ def validate_api_key(func):
         if not api_key:
             return jsonify({"error": "API key is required"}), 403
 
-        with sqlite3.connect("users.db") as conn:
+        with psycopg2.connect(DATABASE_URL) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT username FROM users WHERE api_key = ?", (api_key,))
+            cursor.execute("SELECT username FROM users WHERE api_key = %s", (api_key,))
             user = cursor.fetchone()
             if not user:
                 return jsonify({"error": "Invalid API key"}), 403
@@ -81,12 +87,12 @@ def fetch_contact(user):
             return jsonify({"message": "No company found"}), 404
 
         # Increment usage count in the database
-        with lock, sqlite3.connect("users.db") as conn:
+        with lock, psycopg2.connect(DATABASE_URL) as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 UPDATE users
                 SET usage_count = usage_count + 1
-                WHERE username = ?
+                WHERE username = %s
             ''', (user,))
             conn.commit()
 
@@ -102,7 +108,7 @@ def user_stats():
     """
     Endpoint to fetch usage statistics for all users.
     """
-    with sqlite3.connect("users.db") as conn:
+    with psycopg2.connect(DATABASE_URL) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT username, api_key, usage_count FROM users")
         users = cursor.fetchall()
